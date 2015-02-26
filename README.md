@@ -163,7 +163,7 @@ can be made:
     keytool -genkey -keyalg RSA -alias stiam-aa -keystore aa.jks -storepass secret -validity 360 -keysize 2048
 
 At the interactive prompts of keytool, all questions can be answered with 
-<return>, accepting the defaults - or adjusted to personal preferences. Refer to
+[return], accepting the defaults - or adjusted to personal preferences. Refer to
 keytool's documentation for further information.
 
 After generating new keys, the current keystore-file has to be replaced with the 
