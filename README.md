@@ -1,8 +1,7 @@
 STIAM-Sender
 ============
 
-STIAM-Sender is a proof-of-concept implementation of a  
-[SAML2](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=security)-Attribute-Authority (AA)
+STIAM-Sender is a proof-of-concept implementation of a [SAML2](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=security)-Attribute-Authority (AA)
 supporting "extended" attribute queries (containing included authentication 
 statements).
 
@@ -31,8 +30,8 @@ procedures of the operating system in use for building and deployment.
 As an example, to install the two packages in Ubuntu, the following commands 
 can be used:
 
- apt-get update 
- apt-get install openjdk-7-jdk maven
+    apt-get update 
+    apt-get install openjdk-7-jdk maven
 
 ### Pre-build Configuration
 The build-process for STIAM-Sender performs a multitude of tests during build.
@@ -44,7 +43,7 @@ Currently, the simplest way to configure the STIAM-Sender is to copy the
 directory doc/sample-configuration to its default location, a directory called 
 ".stiam-aa" in the user's homedirectory:
 
- cp -r doc/sample-configuration ~/.stiam-aa
+    cp -r doc/sample-configuration ~/.stiam-aa
 
 A similar approach should be possible on non-UNIX-like systems, however this has 
 not been tested.
@@ -56,22 +55,22 @@ It is possible to specify an alternate location for configuration data by using
 the system property "stiam.config". In this case however, the pom.xml has to be 
 adjusted to set this property while running the build process:
 
- ..
- <build>
-   ..
-   <plugin>
-     <groupId>org.apache.maven.plugins</groupId>
-     <artifactId>maven-surefire-plugin</artifactId>
-     <version>2.18</version>
-     <configuration>
-       <systemPropertyVariables>
-         <stiam.config>${basedir}/doc/sample-configuration/aa.properties</stiam.config>
-       </systemPropertyVariables>
-     </configuration>
-   </plugin>
-  </plugins>
- </build>
- ..
+    ..
+    <build>
+      ..
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.18</version>
+        <configuration>
+          <systemPropertyVariables>
+            <stiam.config>${basedir}/doc/sample-configuration/aa.properties</stiam.config>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+     </plugins>
+    </build>
+    ..
 
 Also, in the aa.properties-file mentioned in the given stiam.config-property, 
 all filepaths have to be adjusted to the correct location. Furthermore, for all 
@@ -86,7 +85,7 @@ Refer to the documentation provided in the different configuration files.
 Performing a clean build of the STIAM-Sender is done using maven and should be
 quite straightforward:
 
- mvn clean install
+    mvn clean install
 
 This should, after a while, generate a "target"-directory, containing, among 
 others, the following two files:
@@ -103,14 +102,14 @@ There are two possibilities for deployment:
 STIAM-Sender includes a graphical console for testing which can easily be 
 started using the following command from the source-tree directory:
 
- java -jar target/aa-1.0.0-jetty-console.war
+    java -jar target/aa-1.0.0-jetty-console.war
 
 In the appearing console window, the server's port can be configured and the 
 included Jetty-server can be started and stopped. After starting the server,
 the default location of the attribute service (AS) should be opened 
 automatically in your browser:
 
- http://localhost:<choosen port>/
+ http://localhost:[choosen port]/
 
 A greeting-page should appear, telling that the STIAM-Sender AS is ready to
 serve attribute-queries.
@@ -135,7 +134,7 @@ integrated QuerySender-tool provided with the distribution.
 To issue a test-query to STIAM-Sender's AS, it's best to start the QuerySender
 using maven (thus satisfying automatically all dependencies):
 
- mvn exec:java -Dexec.mainClass="ch.bfh.ti.ictm.iam.stiam.aa.util.QuerySender"
+    mvn exec:java -Dexec.mainClass="ch.bfh.ti.ictm.iam.stiam.aa.util.QuerySender"
 
 Note: Also for the QuerySender, proper configuration must exist, see previous
 sections about configuration.
@@ -161,7 +160,7 @@ It is thus not necessary to generate new keys to test the functionality.
 In order to easily generate a new keypair, the following call to JAVA's keytool
 can be made:
 
- keytool -genkey -keyalg RSA -alias stiam-aa -keystore aa.jks -storepass secret -validity 360 -keysize 2048
+    keytool -genkey -keyalg RSA -alias stiam-aa -keystore aa.jks -storepass secret -validity 360 -keysize 2048
 
 At the interactive prompts of keytool, all questions can be answered with 
 <return>, accepting the defaults - or adjusted to personal preferences. Refer to
