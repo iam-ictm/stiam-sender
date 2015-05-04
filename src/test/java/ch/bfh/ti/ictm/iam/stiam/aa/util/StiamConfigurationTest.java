@@ -57,6 +57,7 @@ public class StiamConfigurationTest {
     private static final String DEFAULT_LDAP_FILTER = "(uid=%s)";
 
     // Attribute-Service configuration
+    private static final String DEFAULT_BINDING = "http_post";
     private static final String DEFAULT_ATTRIBUTEQUERY_ENCODING = "UTF-8";
     private static final String DEFAULT_VERIFY_QUERY_SIGNATURE = "true";
     private static final String DEFAULT_VERIFY_AUTHN_STATEMENT = "true";
@@ -204,6 +205,15 @@ public class StiamConfigurationTest {
     }
 
     //////////////////// Attribute-Service configuration
+    @Test
+    public void tryToGetBinding() {
+        if (testConfig.getProperty("StiamConfigurationTest.Binding", DEFAULT_BINDING).equalsIgnoreCase("http_post")) {
+            assertEquals(stiamConfig.getBinding(), StiamConfiguration.Binding.HTTP_POST);
+        } else {
+            assertEquals(stiamConfig.getBinding(), StiamConfiguration.Binding.SOAP);
+        }
+    }
+
     @Test
     public void tryToGetAttributeQueryEncoding() {
         assertEquals(testConfig.getProperty("StiamConfigurationTest.AttributeQueryEncoding", DEFAULT_ATTRIBUTEQUERY_ENCODING),

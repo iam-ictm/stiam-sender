@@ -40,6 +40,13 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class StiamConfiguration {
 //////////////////////////////////////// Fields    
 
+    /**
+     * enum used for specifying the binding offered by the AA.
+     */
+    public enum Binding {
+        HTTP_POST, SOAP
+    };
+
     // Main configuration
     /**
      * Default path-fragment with the directory-name of the directory containing
@@ -81,6 +88,7 @@ public class StiamConfiguration {
     protected static final String DEFAULT_LDAP_FILTER = "(uid=%s)";
 
     // Attribute-Service configuration
+    protected static final String DEFAULT_BINDING = "http_post";  // alternative: soap
     protected static final String DEFAULT_ATTRIBUTEQUERY_ENCODING = "UTF-8";
     protected static final String DEFAULT_VERIFY_QUERY_SIGNATURE = "true";
     protected static final String DEFAULT_VERIFY_AUTHN_STATEMENT = "true";
@@ -386,6 +394,22 @@ public class StiamConfiguration {
     }
 
 //////////////////// Attribute-Service configuration
+    /**
+     * Defines the SAML-binding the AA can handle.
+     *
+     * Can be configured with property "AttributeService.Binding", defaults to
+     * DEFAULT_BINDING.
+     *
+     * @return Binding to be used
+     */
+    public Binding getBinding() {
+        if (stiamSettings.getProperty("AttributeService.Binding", DEFAULT_BINDING).equalsIgnoreCase("http_post")) {
+            return Binding.HTTP_POST;
+        } else {
+            return Binding.SOAP;
+        }
+    }
+
     /**
      * Defines which encoding is used in the SAML-messages
      *
