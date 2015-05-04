@@ -179,8 +179,6 @@ The implementation of the proof-of-concept has been finished and it has met the
 given requirements. There are some open issues left which are listed here for 
 the sake of completeness:
 
-* Additional message exchange, most probably SAML's SOAP binding should be 
-  supported
 * A deeper investigation of possible error cases in the message handling 
   performed by AttributeService should be done.
 * Make configuration _directory_ (not file) configurable via 
