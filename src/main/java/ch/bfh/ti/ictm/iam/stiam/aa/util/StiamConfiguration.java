@@ -88,7 +88,7 @@ public class StiamConfiguration {
     protected static final String DEFAULT_LDAP_FILTER = "(uid=%s)";
 
     // Attribute-Service configuration
-    protected static final String DEFAULT_BINDING = "http_post";  // alternative: soap
+    protected static final String DEFAULT_BINDING = "soap";  // alternative: http_post
     protected static final String DEFAULT_ATTRIBUTEQUERY_ENCODING = "UTF-8";
     protected static final String DEFAULT_VERIFY_QUERY_SIGNATURE = "true";
     protected static final String DEFAULT_VERIFY_AUTHN_STATEMENT = "true";
@@ -403,10 +403,10 @@ public class StiamConfiguration {
      * @return Binding to be used
      */
     public Binding getBinding() {
-        if (stiamSettings.getProperty("AttributeService.Binding", DEFAULT_BINDING).equalsIgnoreCase("http_post")) {
-            return Binding.HTTP_POST;
-        } else {
+        if (stiamSettings.getProperty("AttributeService.Binding", DEFAULT_BINDING).equalsIgnoreCase(DEFAULT_BINDING)) {
             return Binding.SOAP;
+        } else {
+            return Binding.HTTP_POST;
         }
     }
 
