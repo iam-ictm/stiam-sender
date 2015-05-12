@@ -10,6 +10,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -24,6 +25,7 @@ import javax.xml.transform.TransformerException;
 import org.opensaml.xml.ConfigurationException;
 import org.opensaml.xml.io.MarshallingException;
 import org.opensaml.xml.parse.XMLParserException;
+import org.opensaml.xml.security.SecurityException;
 import org.opensaml.xml.signature.SignatureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,9 +40,13 @@ import org.slf4j.LoggerFactory;
 class QuerySender {
 //////////////////////////////////////// Fields
 
-    private static final Logger logger = LoggerFactory.getLogger(QuerySender.class);
+    private static final String DEFAULT_BINDING = "soap";
+    private static final String CONFIG_Binding = "QuerySender.Binding";
     private static final String CONFIG_AS_URL = "QuerySender.ASURL";
     private static final String CONFIG_ATTRIBUTE_LIST = "QuerySender.AttributeList";
+
+    private static final Logger logger = LoggerFactory.getLogger(QuerySender.class);
+    private static QuerySenderConfiguration config = new QuerySenderConfiguration();
 
 //////////////////////////////////////// Methods
     /**
@@ -49,11 +55,9 @@ class QuerySender {
      * @param args Arguments given to the main call
      */
     public static void main(String[] args) {
-        QuerySenderConfiguration config = new QuerySenderConfiguration();
         try {
             config.load();
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
             config = null;
         }
 
@@ -76,27 +80,18 @@ class QuerySender {
             connection.setDoOutput(true);
             connection.setDoInput(true);
             connection.setRequestMethod("POST");
+            connection.setRequestProperty("Accept", "*/*");
 
-            final ArrayList<String[]> attributes = new ArrayList<>(10);
-            if (config != null) {
-                logger.info("Reading attribute list from configuration...");
-                final String[] attributeProperties = config.getPropertyList(CONFIG_ATTRIBUTE_LIST);
-                if (attributeProperties != null) {
-                    for (String attributeProperty : attributeProperties) {
-                        logger.info("Attribute: {}", Arrays.toString(config.getPropertyList(attributeProperty)));
-                        attributes.add(config.getPropertyList(attributeProperty));
-                    }
-                }
+            final String bodyData;
+            if (config.getProperty(CONFIG_Binding, DEFAULT_BINDING).equalsIgnoreCase(DEFAULT_BINDING)) {
+                connection.setRequestProperty("Content-Type", "text/xml");
+                bodyData = createSOAPBindingData();
+            } else {
+                bodyData = createPOSTBindingData();
             }
 
-            // Generation and encoding of the request. Note: UTF-8 is taken for URL-encoding independently
-            // of the encoding specified in configuration which applies to the SAML-messages only.
-            // Refer to http://docs.oracle.com/javase/7/docs/api/java/net/URLEncoder.html#encode(java.lang.String,%20java.lang.String)
-            // for more information.
-            final ExtendedAttributeQueryBuilder builder = new ExtendedAttributeQueryBuilder(attributes);
-            final String samlRequest = "SAMLRequest=" + URLEncoder.encode(builder.buildBase64(), "UTF-8");
             try (PrintStream ps = new PrintStream(connection.getOutputStream())) {
-                ps.print(samlRequest);
+                ps.print(bodyData);
             }
             connection.connect();
 
@@ -110,42 +105,77 @@ class QuerySender {
                 }
             }
             logger.info("Response: {}", response);
-        }
-        catch (MalformedURLException ex) {
+        } catch (MalformedURLException ex) {
             logger.error("Malformed AA-AS URL: {}", ex.getMessage());
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
             logger.error("IO-Error occured: {}", ex.getMessage());
-        }
-        catch (ConfigurationException ex) {
+        } catch (ConfigurationException ex) {
             logger.error("Configuration problem: {}", ex.toString());
-        }
-        catch (NoSuchAlgorithmException ex) {
+        } catch (NoSuchAlgorithmException ex) {
             logger.error("Error finding algorithm: {}", ex.toString());
-        }
-        catch (KeyStoreException ex) {
+        } catch (KeyStoreException ex) {
             logger.error("Error while intializing keystore: {}", ex.toString());
-        }
-        catch (CertificateException ex) {
+        } catch (CertificateException ex) {
             logger.error("Error with the certificate: {}", ex.toString());
-        }
-        catch (UnrecoverableEntryException ex) {
+        } catch (UnrecoverableEntryException ex) {
             logger.error("Unrecoverable entry: {}", ex.toString());
-        }
-        catch (org.opensaml.xml.security.SecurityException ex) {
+        } catch (org.opensaml.xml.security.SecurityException ex) {
             logger.error("Security problem: {}", ex.toString());
-        }
-        catch (MarshallingException ex) {
+        } catch (MarshallingException ex) {
             logger.error("Issue while marshalling: {}", ex.toString());
-        }
-        catch (SignatureException ex) {
+        } catch (SignatureException ex) {
             logger.error("Issue while signing: {}", ex.toString());
-        }
-        catch (XMLParserException ex) {
+        } catch (XMLParserException ex) {
             logger.error("Problem with the XML parser: {}", ex.toString());
-        }
-        catch (TransformerException ex) {
+        } catch (TransformerException ex) {
             logger.error("Problem with the XML transformer: {}", ex.toString());
         }
     }
+
+    /**
+     * Helper method for parsing the attribute-specifications in the
+     * configuration file.
+     *
+     * @return An ArrayList of String-arrays as expected by the builder
+     */
+    private static ArrayList<String[]> buildAttributes() {
+        final ArrayList<String[]> attributes = new ArrayList<>(10);
+        if (config != null) {
+            logger.info("Reading attribute list from configuration...");
+            final String[] attributeProperties = config.getPropertyList(CONFIG_ATTRIBUTE_LIST);
+            if (attributeProperties != null) {
+                for (String attributeProperty : attributeProperties) {
+                    logger.info("Attribute: {}", Arrays.toString(config.getPropertyList(attributeProperty)));
+                    attributes.add(config.getPropertyList(attributeProperty));
+                }
+            }
+        }
+        return attributes;
+    }
+
+    private static String createPOSTBindingData() throws ConfigurationException, UnsupportedEncodingException,
+            NoSuchAlgorithmException, IOException, KeyStoreException, CertificateException,
+            UnrecoverableEntryException, SecurityException, MarshallingException, SignatureException,
+            XMLParserException, TransformerException {
+        // Generation and encoding of the request. Note: UTF-8 is taken for URL-encoding independently
+        // of the encoding specified in configuration which applies to the SAML-messages only.
+        // Refer to http://docs.oracle.com/javase/7/docs/api/java/net/URLEncoder.html#encode(java.lang.String,%20java.lang.String)
+        // for more information.
+        final ExtendedAttributeQueryBuilder builder = new ExtendedAttributeQueryBuilder(buildAttributes());
+        return "SAMLRequest=" + URLEncoder.encode(builder.buildBase64(), "UTF-8");
+    }
+
+    private static String createSOAPBindingData() throws ConfigurationException, UnsupportedEncodingException,
+            NoSuchAlgorithmException, IOException, KeyStoreException, CertificateException,
+            UnrecoverableEntryException, SecurityException, MarshallingException, SignatureException,
+            XMLParserException, TransformerException {
+        // Generation and encoding of the request. Note: UTF-8 is taken for URL-encoding independently
+        // of the encoding specified in configuration which applies to the SAML-messages only.
+        // Refer to http://docs.oracle.com/javase/7/docs/api/java/net/URLEncoder.html#encode(java.lang.String,%20java.lang.String)
+        // for more information.
+        final ExtendedAttributeQueryBuilder builder = new ExtendedAttributeQueryBuilder(buildAttributes());
+        return "<S:Envelope xmlns:S=\"http://schemas.xmlsoap.org/soap/envelope/\"><S:Body>"
+                + builder.build() + "</S:Body></S:Envelope>";
+    }
+
 }
