@@ -165,6 +165,7 @@ class QuerySender {
         return "SAMLRequest=" + URLEncoder.encode(builder.buildBase64(), "UTF-8");
     }
 
+    // FIXME ugly substring-hack
     private static String createSOAPBindingData() throws ConfigurationException, UnsupportedEncodingException,
             NoSuchAlgorithmException, IOException, KeyStoreException, CertificateException,
             UnrecoverableEntryException, SecurityException, MarshallingException, SignatureException,
