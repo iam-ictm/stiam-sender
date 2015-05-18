@@ -169,13 +169,9 @@ class QuerySender {
             NoSuchAlgorithmException, IOException, KeyStoreException, CertificateException,
             UnrecoverableEntryException, SecurityException, MarshallingException, SignatureException,
             XMLParserException, TransformerException {
-        // Generation and encoding of the request. Note: UTF-8 is taken for URL-encoding independently
-        // of the encoding specified in configuration which applies to the SAML-messages only.
-        // Refer to http://docs.oracle.com/javase/7/docs/api/java/net/URLEncoder.html#encode(java.lang.String,%20java.lang.String)
-        // for more information.
         final ExtendedAttributeQueryBuilder builder = new ExtendedAttributeQueryBuilder(buildAttributes());
         return "<S:Envelope xmlns:S=\"http://schemas.xmlsoap.org/soap/envelope/\"><S:Body>"
-                + builder.build() + "</S:Body></S:Envelope>";
+                + builder.build().substring(38) + "</S:Body></S:Envelope>";
     }
 
 }
