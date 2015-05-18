@@ -83,8 +83,7 @@ public class AttributeServiceTest {
     public static void tearDownClass() {
         try {
             stringWriter.close();
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
         }
         stringWriter = null;
     }
@@ -100,8 +99,7 @@ public class AttributeServiceTest {
         try {
             as.init();
             as.doGet(mockEmptyRequest(), res);
-        }
-        catch (ServletException | IOException ex) {
+        } catch (ServletException | IOException ex) {
             fail("Error while testing servlet: " + ex.toString());
         }
         assertThat(res.getStatus(), is(200));
@@ -118,15 +116,14 @@ public class AttributeServiceTest {
         try {
             as.init();
             as.doPost(mockEmptyRequest(), res);
-        }
-        catch (ServletException | IOException ex) {
+        } catch (ServletException | IOException ex) {
             fail("Error while testing servlet: " + ex.toString());
         }
         assertThat(res.getStatus(), is(400));
     }
 
     /**
-     * Test doGet() with an empty request
+     * Test doGet() with a mocked request
      */
     @Test
     public void testAttributeServiceGETAttributeRequest() {
@@ -136,15 +133,14 @@ public class AttributeServiceTest {
         try {
             as.init();
             as.doGet(mockAttributeRequest(), res);
-        }
-        catch (ServletException | IOException ex) {
+        } catch (ServletException | IOException ex) {
             fail("Error while testing servlet: " + ex.toString());
         }
         assertThat(res.getStatus(), is(200));
     }
 
     /**
-     * Test doPost() with an empty request
+     * Test doPost() with a mocked request
      */
     @Test
     public void testAttributeServicePOSTAttributeRequest() {
@@ -154,8 +150,7 @@ public class AttributeServiceTest {
         try {
             as.init();
             as.doPost(mockAttributeRequest(), res);
-        }
-        catch (ServletException | IOException ex) {
+        } catch (ServletException | IOException ex) {
             fail("Error while testing servlet: " + ex.toString());
         }
         assertThat(res.getStatus(), is(200));
@@ -169,8 +164,7 @@ public class AttributeServiceTest {
         final HttpServletResponse res = mock(ServletResponseStub.class);
         try {
             when(res.getWriter()).thenReturn(new PrintWriter(stringWriter, true));
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
             fail("Could not initialise writer of servletResponse: " + ex.toString());
         }
 
@@ -210,8 +204,7 @@ public class AttributeServiceTest {
         try {
             when(req.getParameter("SAMLRequest")).thenReturn(
                     new ExtendedAttributeQueryBuilder(attributes).buildBase64());
-        }
-        catch (ConfigurationException | NoSuchAlgorithmException | IOException |
+        } catch (ConfigurationException | NoSuchAlgorithmException | IOException |
                 KeyStoreException | CertificateException | UnrecoverableEntryException |
                 SecurityException | MarshallingException | SignatureException |
                 TransformerException | XMLParserException ex) {
