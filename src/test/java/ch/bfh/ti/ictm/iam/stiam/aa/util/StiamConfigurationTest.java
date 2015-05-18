@@ -57,7 +57,7 @@ public class StiamConfigurationTest {
     private static final String DEFAULT_LDAP_FILTER = "(uid=%s)";
 
     // Attribute-Service configuration
-    private static final String DEFAULT_BINDING = "http_post";
+    private static final String DEFAULT_BINDING = "soap";
     private static final String DEFAULT_ATTRIBUTEQUERY_ENCODING = "UTF-8";
     private static final String DEFAULT_VERIFY_QUERY_SIGNATURE = "true";
     private static final String DEFAULT_VERIFY_AUTHN_STATEMENT = "true";
