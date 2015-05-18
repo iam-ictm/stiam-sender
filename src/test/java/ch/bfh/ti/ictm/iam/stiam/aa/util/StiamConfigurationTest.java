@@ -163,12 +163,6 @@ public class StiamConfigurationTest {
                 stiamConfig.getSAMLSubjectConfirmationMethod());
     }
 
-    @Test
-    public void tryToGetSAMLReturnPOSTBinding() {
-        assertEquals(Boolean.parseBoolean(testConfig.getProperty("StiamConfigurationTest.SAML.ReturnPOSTBinding", DEFAULT_SAML_RETURN_POST_BINDING)),
-                stiamConfig.getSAMLReturnPOSTBinding());
-    }
-
     //////////////////// LDAP-Methods
     @Test
     public void tryToGetLdapHost() {

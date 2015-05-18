@@ -305,19 +305,6 @@ public class StiamConfiguration {
         return stiamSettings.getProperty("SAML.SubjectConfirmationMethod", DEFAULT_SAML_SUBJECTCONFIRMATIONMETHOD);
     }
 
-    /**
-     * Defines the format of the responses returned by the AA. If true, a
-     * response according to SAML2.0 HTTP-POST-binding is generated, if false a
-     * simple plaintext response is generated.
-     *
-     * Can be configured with property "SAML.ReturnPOSTBinding", defaults to
-     * DEFAULT_SAML_RETURN_POST_BINDING
-     *
-     * @return Confirmation-method of the subject used in SAML-messages
-     */
-    public boolean getSAMLReturnPOSTBinding() {
-        return Boolean.parseBoolean(stiamSettings.getProperty("SAML.ReturnPOSTBinding", DEFAULT_SAML_RETURN_POST_BINDING));
-    }
 
 //////////////////// LDAP-Methods
     /**
