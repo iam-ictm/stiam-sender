@@ -23,6 +23,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -41,8 +42,10 @@ import org.opensaml.saml2.core.AttributeQuery;
 import org.opensaml.saml2.core.AuthnStatement;
 import org.opensaml.ws.message.MessageContext;
 import org.opensaml.ws.message.decoder.MessageDecodingException;
+import org.opensaml.ws.soap.soap11.Envelope;
 import org.opensaml.ws.transport.http.HttpServletRequestAdapter;
 import org.opensaml.xml.ConfigurationException;
+import org.opensaml.xml.XMLObject;
 import org.opensaml.xml.io.MarshallingException;
 import org.opensaml.xml.parse.XMLParserException;
 import org.opensaml.xml.security.SecurityException;
@@ -134,18 +137,6 @@ public class AttributeService extends HttpServlet {
         logger.info("Request received!");
         final DateTime receptionTime = DateTime.now();
 
-        //////////////////// Check for POST-parameter SAMLRequest
-        logger.debug("Trying to find raw request...");
-        final String rawQuery = req.getParameter("SAMLRequest");
-        if (rawQuery == null) {
-            logger.warn("Request did not contain a SAMLRequest!");
-            res.setStatus(400);
-            res.setContentType("text/plain");
-            res.getWriter().println("No SAML request found in POST!");
-            return;
-        }
-        logger.debug("Raw request found!");
-
         //////////////////// Decode raw request
         logger.debug("Trying to decode raw request...");
         final MessageContext messageContext = new BasicSAMLMessageContext();
@@ -161,7 +152,7 @@ public class AttributeService extends HttpServlet {
 
         try {
             messageDecoder.decode(messageContext);
-        } catch (MessageDecodingException | SecurityException ex) {
+        } catch (MessageDecodingException | SecurityException | IllegalArgumentException ex) {
             sendSAMLError(res, 400, "Decoding failed: " + ex.getMessage(), "", "",
                     new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
                         ResponseBuilder.STATUS_CODE_REQUEST_DENIED});
@@ -171,15 +162,34 @@ public class AttributeService extends HttpServlet {
 
         //////////////////// Read out attribute-query
         logger.debug("Trying to read AttributeQuery...");
-        final AttributeQuery attributeQuery;
+        AttributeQuery attributeQuery = null;
         try {
-            attributeQuery = (AttributeQuery) messageContext.getInboundMessage();
+            if (config.getBinding() == StiamConfiguration.Binding.HTTP_POST) {
+                attributeQuery = (AttributeQuery) messageContext.getInboundMessage();
+            } else {
+                final Envelope soapEnvelope = (Envelope) messageContext.getInboundMessage();
+                final List<XMLObject> bodyElements = soapEnvelope.getBody().getUnknownXMLObjects();
+
+                for (XMLObject element : bodyElements) {
+                    if (element instanceof AttributeQuery) {
+                        attributeQuery = (AttributeQuery) element;
+                    }
+                }
+            }
         } catch (ClassCastException ex) {
-            sendSAMLError(res, 400, "Decoded message was not an attribute query!", "", "",
+            sendSAMLError(res, 400, "AttributeQuery could not be read!", "", "",
                     new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
                         ResponseBuilder.STATUS_CODE_REQUEST_DENIED});
             return;
         }
+
+        if (attributeQuery == null) {
+            sendSAMLError(res, 400, "No AttributeQuery found!", "", "",
+                    new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
+                        ResponseBuilder.STATUS_CODE_REQUEST_DENIED});
+            return;
+        }
+
         logger.debug("Sucessfully read AttributeQuery!");
 
         //////////////////// Try to read out QueryID, Issuer and NameID of the query
