@@ -349,7 +349,7 @@ public class AttributeService extends HttpServlet {
         try {
             logger.debug("Building attribute response...");
             final AttributeResponseBuilder builder = new AttributeResponseBuilder(queryIssuer, queryID, nameID, attributes.values());
-            if (config.getSAMLReturnPOSTBinding()) {
+            if (config.getBinding() == StiamConfiguration.Binding.HTTP_POST) {
                 res.setStatus(200);
                 res.setContentType("text/html");
 
@@ -364,8 +364,13 @@ public class AttributeService extends HttpServlet {
                 pw.println("</body>\n</html>");
             } else {
                 res.setStatus(200);
-                res.setContentType("text/plain");
-                res.getWriter().println(builder.build());
+                res.setContentType("text/xml;charset=UTF-8");
+
+                final PrintWriter pw = res.getWriter();
+                pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+                pw.print("<soap11:Envelope xmlns:soap11=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap11:Body>");
+                pw.print(builder.build().substring(38));    // FIXME ugly substring-hack
+                pw.print("</soap11:Body></soap11:Envelope>");
             }
         } catch (ConfigurationException | NoSuchAlgorithmException | KeyStoreException | CertificateException |
                 UnrecoverableEntryException | SecurityException | MarshallingException | SignatureException |
