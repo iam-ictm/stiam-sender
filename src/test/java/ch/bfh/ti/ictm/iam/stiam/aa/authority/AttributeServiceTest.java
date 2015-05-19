@@ -7,6 +7,7 @@ package ch.bfh.ti.ictm.iam.stiam.aa.authority;
 
 import ch.bfh.ti.ictm.iam.stiam.aa.test.TestConfiguration;
 import ch.bfh.ti.ictm.iam.stiam.aa.util.saml.ExtendedAttributeQueryBuilder;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -15,7 +16,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
+import javax.servlet.ReadListener;
 import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.xml.transform.TransformerException;
@@ -202,8 +205,13 @@ public class AttributeServiceTest {
             attributes = new ArrayList<>(0);
         }
         try {
+            final ExtendedAttributeQueryBuilder builder = new ExtendedAttributeQueryBuilder(attributes);
             when(req.getParameter("SAMLRequest")).thenReturn(
-                    new ExtendedAttributeQueryBuilder(attributes).buildBase64());
+                    builder.buildBase64());
+            when(req.getInputStream()).thenReturn(new MockInputStream(
+                    new String("<S:Envelope xmlns:S=\"http://schemas.xmlsoap.org/soap/envelope/\"><S:Body>"
+                            + builder.build().substring(38) + "</S:Body></S:Envelope>")) // FIXME ugly substring-hack
+            );
         } catch (ConfigurationException | NoSuchAlgorithmException | IOException |
                 KeyStoreException | CertificateException | UnrecoverableEntryException |
                 SecurityException | MarshallingException | SignatureException |
@@ -211,5 +219,37 @@ public class AttributeServiceTest {
             fail("Could not initialise servlet request: " + ex.toString());
         }
         return req;
+    }
+
+//////////////////////////////////////// Inner classes
+    /**
+     * A mockup of a ServletInputStream used for supporting the SOAP-binding.
+     */
+    private class MockInputStream extends ServletInputStream {
+        private final ByteArrayInputStream stream;
+
+        MockInputStream(String data) {
+            stream = new ByteArrayInputStream(data.getBytes());
+        }
+
+        @Override
+        public boolean isFinished() {
+            return stream.available() > 0;
+        }
+
+        @Override
+        public boolean isReady() {
+            return true;
+        }
+
+        @Override
+        public int read() throws IOException {
+            return stream.read();
+        }
+
+        @Override
+        public void setReadListener(ReadListener readListener) {
+            throw new UnsupportedOperationException();
+        }
     }
 }
