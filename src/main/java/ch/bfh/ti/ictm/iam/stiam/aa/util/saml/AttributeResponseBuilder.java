@@ -6,15 +6,19 @@
 package ch.bfh.ti.ictm.iam.stiam.aa.util.saml;
 
 import ch.bfh.ti.ictm.iam.stiam.aa.util.StiamConfiguration;
+
 import java.io.IOException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
 import java.util.Collection;
+
 import javax.xml.transform.TransformerException;
+
 import org.opensaml.Configuration;
 import org.opensaml.common.SAMLVersion;
+import org.opensaml.common.impl.SecureRandomIdentifierGenerator;
 import org.opensaml.saml2.core.Assertion;
 import org.opensaml.saml2.core.AttributeStatement;
 import org.opensaml.saml2.core.AttributeValue;
@@ -99,7 +103,7 @@ public class AttributeResponseBuilder extends ResponseBuilder {
         //////////////////// Add attribute assertion to the response
         final Assertion assertion = (Assertion) buildXMLObject(Assertion.DEFAULT_ELEMENT_NAME);
         assertion.setVersion(SAMLVersion.VERSION_20);
-        assertion.setID(messageId);
+        assertion.setID(new SecureRandomIdentifierGenerator().generateIdentifier());
         assertion.setIssueInstant(issueInstant);
         response.getAssertions().add(assertion);
 
