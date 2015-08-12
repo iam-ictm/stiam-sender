@@ -6,13 +6,17 @@
 package ch.bfh.ti.ictm.iam.stiam.aa.util;
 
 import ch.bfh.ti.ictm.iam.stiam.aa.test.TestConfiguration;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
+
 import org.junit.Assert;
+
 import static org.junit.Assert.assertEquals;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.opensaml.xml.security.credential.Credential;
@@ -265,6 +269,13 @@ public class StiamConfigurationTest {
     }
 
     @Test
+    public void tryToGetCertificateOfIssuer() throws KeyStoreException,
+    		FileNotFoundException, NoSuchAlgorithmException, CertificateException, IOException {
+    	final Credential credential = stiamConfig.getCertificate(testConfig.getProperty("StiamConfigurationTest.SAML.Issuer", DEFAULT_SAML_ISSUER));
+    	Assert.assertNotNull(credential);
+    }
+
+    @Test
     public void tryToGetSignatureCredential() throws IOException, KeyStoreException,
             NoSuchAlgorithmException, CertificateException, UnrecoverableEntryException {
         final Credential credential = stiamConfig.getSignatureCredential();
@@ -274,7 +285,7 @@ public class StiamConfigurationTest {
     @Test
     public void tryToGetVerificationCredential() throws IOException, KeyStoreException,
             NoSuchAlgorithmException, CertificateException, UnrecoverableEntryException {
-        final Credential credential = stiamConfig.getVerificationCredential();
+        final Credential credential = stiamConfig.getVerificationCredential(testConfig.getProperty("StiamConfigurationTest.VerificationCertificateName", DEFAULT_SAML_ISSUER));
         Assert.assertNotNull(credential);
     }
 

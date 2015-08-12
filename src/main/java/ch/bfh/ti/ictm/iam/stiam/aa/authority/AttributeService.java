@@ -212,7 +212,7 @@ public class AttributeService extends HttpServlet {
         //////////////////// Verify signature of the attribute query
         if (config.verifyQuerySignature()) {
             logger.debug("Trying to verify signature of the attribute query...");
-            if (!verifySignature(attributeQuery.getSignature())) {
+            if (!verifySignature(attributeQuery.getSignature(), attributeQuery.getIssuer().getValue().toString())) {
                 sendSAMLError(res, 400, "Signature validation failed!", queryIssuer, queryID,
                         new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
                             ResponseBuilder.STATUS_CODE_REQUEST_DENIED});
@@ -271,10 +271,10 @@ public class AttributeService extends HttpServlet {
             }
             logger.debug("NameIDs are equal!");
 
-            //////////////////// Verify signature of the attribute query
+            //////////////////// Verify signature of the assertion
             if (config.verifyAuthnSignature()) {
                 logger.debug("Trying to validate signature of authentication statement...");
-                if (!verifySignature(assertion.getSignature())) {
+                if (!verifySignature(assertion.getSignature(), assertion.getIssuer().getValue().toString())) {
                     sendSAMLError(res, 400, "Signature validation failed!", queryIssuer, queryID,
                             new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
                                 ResponseBuilder.STATUS_CODE_NO_AUTHN_CONTEXT});
@@ -388,9 +388,9 @@ public class AttributeService extends HttpServlet {
      * @param signature the signature to verify
      * @return true if verification was successful, false if not
      */
-    private boolean verifySignature(Signature signature) {
-        try {
-            final SignatureValidator signatureValidator = new SignatureValidator(config.getVerificationCredential());
+    private boolean verifySignature(Signature signature, String alias) {
+    	try {
+            final SignatureValidator signatureValidator = new SignatureValidator(config.getVerificationCredential(alias));
             signatureValidator.validate(signature);
         } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | UnrecoverableEntryException | IOException ex) {
             logger.error("Error while obtaining verification credential: {}", ex.getMessage());
