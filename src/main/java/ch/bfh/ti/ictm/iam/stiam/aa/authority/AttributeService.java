@@ -423,7 +423,13 @@ public class AttributeService extends HttpServlet {
         res.setContentType("text/plain");
         try {
             final ResponseBuilder builder = new ResponseBuilder(destination, queryID, statusCodes);
-            res.getWriter().println(builder.build());
+
+            final PrintWriter pw = res.getWriter();
+            pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            pw.print("<soap11:Envelope xmlns:soap11=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap11:Body>");
+            pw.print(builder.build().substring(38));    // FIXME ugly substring-hack
+            pw.print("</soap11:Body></soap11:Envelope>");
+            
         } catch (ConfigurationException | NoSuchAlgorithmException | KeyStoreException | CertificateException |
                 UnrecoverableEntryException | SecurityException | MarshallingException | SignatureException |
                 XMLParserException | TransformerException | IOException ex) {
