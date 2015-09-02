@@ -167,7 +167,12 @@ At the interactive prompts of keytool, all questions can be answered with
 keytool's documentation for further information.
 
 After generating new keys, the current keystore-file has to be replaced with the 
-new one. 
+new one.
+
+Certificate of the issuer must be saved in the keystore store as well. 
+Otherwise, validating the signature would fail. The name of the issuer 
+certificate must be the same as the SAML.Issuer configuration parameter (in 
+aa.properties).
 
 *Important:* New keys will result in different queries and thus the parameters
 of the unit tests (in aa-test.properties) have to be adjusted before re-running 
