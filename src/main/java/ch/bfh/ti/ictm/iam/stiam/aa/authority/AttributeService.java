@@ -389,7 +389,7 @@ public class AttributeService extends HttpServlet {
      * @return true if verification was successful, false if not
      */
     private boolean verifySignature(Signature signature, String alias) {
-    	try {
+        try {
             final SignatureValidator signatureValidator = new SignatureValidator(config.getVerificationCredential(alias));
             signatureValidator.validate(signature);
         } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | UnrecoverableEntryException | IOException ex) {
@@ -429,7 +429,7 @@ public class AttributeService extends HttpServlet {
             pw.print("<soap11:Envelope xmlns:soap11=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap11:Body>");
             pw.print(builder.build().substring(38));    // FIXME ugly substring-hack
             pw.print("</soap11:Body></soap11:Envelope>");
-            
+
         } catch (ConfigurationException | NoSuchAlgorithmException | KeyStoreException | CertificateException |
                 UnrecoverableEntryException | SecurityException | MarshallingException | SignatureException |
                 XMLParserException | TransformerException | IOException ex) {

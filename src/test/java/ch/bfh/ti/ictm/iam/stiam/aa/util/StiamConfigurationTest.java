@@ -12,11 +12,8 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
-
 import org.junit.Assert;
-
 import static org.junit.Assert.assertEquals;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.opensaml.xml.security.credential.Credential;
@@ -270,9 +267,9 @@ public class StiamConfigurationTest {
 
     @Test
     public void tryToGetCertificateOfIssuer() throws KeyStoreException,
-    		FileNotFoundException, NoSuchAlgorithmException, CertificateException, IOException {
-    	final Credential credential = stiamConfig.getCertificate(testConfig.getProperty("StiamConfigurationTest.SAML.Issuer", DEFAULT_SAML_ISSUER));
-    	Assert.assertNotNull(credential);
+            FileNotFoundException, NoSuchAlgorithmException, CertificateException, IOException {
+        final Credential credential = stiamConfig.getCertificate(testConfig.getProperty("StiamConfigurationTest.SAML.Issuer", DEFAULT_SAML_ISSUER));
+        Assert.assertNotNull(credential);
     }
 
     @Test

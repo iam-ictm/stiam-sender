@@ -114,8 +114,8 @@ public class ResponseBuilder extends MessageBuilder {
 
 //////////////////////////////////////// Methods
     /**
-     * Overrides the method in MessageBuilder in order to generate a SAML
-     * status message with multiple status codes
+     * Overrides the method in MessageBuilder in order to generate a SAML status
+     * message with multiple status codes
      *
      * @return
      * @throws ConfigurationException
