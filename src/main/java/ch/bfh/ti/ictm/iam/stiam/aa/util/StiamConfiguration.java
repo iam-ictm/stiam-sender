@@ -7,6 +7,7 @@ package ch.bfh.ti.ictm.iam.stiam.aa.util;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -38,7 +39,14 @@ import static org.slf4j.LoggerFactory.getLogger;
  * @author Marc Kunz
  */
 public class StiamConfiguration {
-//////////////////////////////////////// Fields    
+//////////////////////////////////////// Fields
+
+    /**
+     * enum used for specifying the binding offered by the AA.
+     */
+    public enum Binding {
+        HTTP_POST, SOAP
+    };
 
     // Main configuration
     /**
@@ -81,6 +89,7 @@ public class StiamConfiguration {
     protected static final String DEFAULT_LDAP_FILTER = "(uid=%s)";
 
     // Attribute-Service configuration
+    protected static final String DEFAULT_BINDING = "soap";  // alternative: http_post
     protected static final String DEFAULT_ATTRIBUTEQUERY_ENCODING = "UTF-8";
     protected static final String DEFAULT_VERIFY_QUERY_SIGNATURE = "true";
     protected static final String DEFAULT_VERIFY_AUTHN_STATEMENT = "true";
@@ -211,7 +220,7 @@ public class StiamConfiguration {
         return stiamSettings.getProperty("Keystore.FilePath", userHome + "/" + DEFAULT_KEYSTORE_FILEPATH);
     }
 
-//////////////////// LDAP-Methods
+//////////////////// SAML-Methods
     /**
      * Defines the Issuer used when generating SAML-messages.
      *
@@ -297,20 +306,6 @@ public class StiamConfiguration {
         return stiamSettings.getProperty("SAML.SubjectConfirmationMethod", DEFAULT_SAML_SUBJECTCONFIRMATIONMETHOD);
     }
 
-    /**
-     * Defines the format of the responses returned by the AA. If true, a
-     * response according to SAML2.0 HTTP-POST-binding is generated, if false a
-     * simple plaintext response is generated.
-     *
-     * Can be configured with property "SAML.ReturnPOSTBinding", defaults to
-     * DEFAULT_SAML_RETURN_POST_BINDING
-     *
-     * @return Confirmation-method of the subject used in SAML-messages
-     */
-    public boolean getSAMLReturnPOSTBinding() {
-        return Boolean.parseBoolean(stiamSettings.getProperty("SAML.ReturnPOSTBinding", DEFAULT_SAML_RETURN_POST_BINDING));
-    }
-
 //////////////////// LDAP-Methods
     /**
      * Defines which host is used to access the LDAP directory.
@@ -387,6 +382,22 @@ public class StiamConfiguration {
 
 //////////////////// Attribute-Service configuration
     /**
+     * Defines the SAML-binding the AA can handle.
+     *
+     * Can be configured with property "AttributeService.Binding", defaults to
+     * DEFAULT_BINDING.
+     *
+     * @return Binding to be used
+     */
+    public Binding getBinding() {
+        if (stiamSettings.getProperty("AttributeService.Binding", DEFAULT_BINDING).equalsIgnoreCase(DEFAULT_BINDING)) {
+            return Binding.SOAP;
+        } else {
+            return Binding.HTTP_POST;
+        }
+    }
+
+    /**
      * Defines which encoding is used in the SAML-messages
      *
      * Can be configured with property
@@ -452,7 +463,7 @@ public class StiamConfiguration {
         return Boolean.parseBoolean(stiamSettings.getProperty("AttributeService.VerifyAuthnTimespan", DEFAULT_VERIFY_AUTHN_TIMESPAN));
     }
 
-//////////////////// Credential configuration    
+//////////////////// Credential configuration
     /**
      * Returns the password used for locking the keystore-file.
      *
@@ -504,21 +515,43 @@ public class StiamConfiguration {
             KeyStoreException, NoSuchAlgorithmException, CertificateException,
             UnrecoverableEntryException {
 
-        char[] pass = getKeystorePassword().toCharArray();
+        KeyStore ks = getKeystore();
 
-        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-        try (FileInputStream fis = new FileInputStream(getKeystoreFilePath())) {
-            ks.load(fis, pass);
-        }
+        KeyStore.PrivateKeyEntry pkEntry = (KeyStore.PrivateKeyEntry) ks
+                .getEntry(alias, new KeyStore.PasswordProtection(
+                                getKeystoreEntryPassword().toCharArray()));
 
-        KeyStore.PrivateKeyEntry pkEntry = (KeyStore.PrivateKeyEntry) ks.getEntry(alias,
-                new KeyStore.PasswordProtection(getKeystoreEntryPassword().toCharArray()));
-
-        X509Certificate certificate = (X509Certificate) pkEntry.getCertificate();
+        X509Certificate certificate = (X509Certificate) pkEntry
+                .getCertificate();
         BasicX509Credential credential = new BasicX509Credential();
         credential.setEntityCertificate(certificate);
         credential.setPublicKey(certificate.getPublicKey());
         credential.setPrivateKey(pkEntry.getPrivateKey());
+        return credential;
+    }
+
+    /**
+     * Returns the certificate to verify the signature of the issuer.
+     *
+     * @param alias the name of the certificate stored in the keystore. It
+     * should be the same name like the issuers name.
+     * @return
+     * @throws KeyStoreException
+     * @throws FileNotFoundException
+     * @throws IOException
+     * @throws NoSuchAlgorithmException
+     * @throws CertificateException
+     */
+    public Credential getCertificate(String alias) throws KeyStoreException,
+            FileNotFoundException, IOException, NoSuchAlgorithmException,
+            CertificateException {
+
+        KeyStore ks = getKeystore();
+
+        BasicX509Credential credential = new BasicX509Credential();
+        credential.setEntityCertificate((X509Certificate) ks
+                .getCertificate(alias));
+
         return credential;
     }
 
@@ -550,10 +583,10 @@ public class StiamConfiguration {
      * @throws CertificateException
      * @throws UnrecoverableEntryException
      */
-    public Credential getVerificationCredential() throws IOException,
-            KeyStoreException, NoSuchAlgorithmException, CertificateException,
-            UnrecoverableEntryException {
-        return getCredential(getKeystoreEntryName());
+    public Credential getVerificationCredential(String alias)
+            throws IOException, KeyStoreException, NoSuchAlgorithmException,
+            CertificateException, UnrecoverableEntryException {
+        return getCertificate(alias);
     }
 
 //////////////////// Various
@@ -584,16 +617,41 @@ public class StiamConfiguration {
 
 //////////////////////////////////////// Private Methods
     /**
+     * Helper to load the keystore.
+     *
+     * @return Keystore which includes certificates, public key and private key.
+     * @throws KeyStoreException
+     * @throws FileNotFoundException
+     * @throws IOException
+     * @throws NoSuchAlgorithmException
+     * @throws CertificateException
+     */
+    private KeyStore getKeystore() throws KeyStoreException,
+            FileNotFoundException, IOException, NoSuchAlgorithmException,
+            CertificateException {
+        char[] pass = getKeystorePassword().toCharArray();
+
+        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+        try (FileInputStream fis = new FileInputStream(getKeystoreFilePath())) {
+            ks.load(fis, pass);
+        }
+
+        return ks;
+    }
+
+    /**
      * Helper for loading a specified configuration-file.
      *
      * @param configFile the properties-file to load. Sets the instance-variable
      * stiamSettings if successful or resets it to null if not
      */
     private void loadConfig(String configFile) {
-        try (BufferedInputStream stream = new BufferedInputStream(new FileInputStream(configFile))) {
+        try (BufferedInputStream stream = new BufferedInputStream(
+                new FileInputStream(configFile))) {
             stiamSettings = new Properties();
             stiamSettings.load(stream);
-            logger.info("Successfully loaded configuration from {}!", configFile);
+            logger.info("Successfully loaded configuration from {}!",
+                    configFile);
         } catch (IOException e) {
             stiamSettings = null;
         }

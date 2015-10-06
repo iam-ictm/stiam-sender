@@ -167,7 +167,12 @@ At the interactive prompts of keytool, all questions can be answered with
 keytool's documentation for further information.
 
 After generating new keys, the current keystore-file has to be replaced with the 
-new one. 
+new one.
+
+Certificate of the issuer must be saved in the keystore store as well.
+Otherwise, validating the signature would fail. The name of the issuer
+certificate must be the same as the SAML.Issuer configuration parameter (in
+aa.properties).
 
 *Important:* New keys will result in different queries and thus the parameters
 of the unit tests (in aa-test.properties) have to be adjusted before re-running 
@@ -179,8 +184,6 @@ The implementation of the proof-of-concept has been finished and it has met the
 given requirements. There are some open issues left which are listed here for 
 the sake of completeness:
 
-* Additional message exchange, most probably SAML's SOAP binding should be 
-  supported
 * A deeper investigation of possible error cases in the message handling 
   performed by AttributeService should be done.
 * Make configuration _directory_ (not file) configurable via 

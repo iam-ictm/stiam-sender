@@ -49,7 +49,6 @@ public class ResponseBuilder extends MessageBuilder {
     protected final String destination;
     protected final String inResponseTo;
     protected final String[] statusCodes;
-    protected final String messageId;
     protected final DateTime issueInstant;
 
     /**
@@ -91,7 +90,6 @@ public class ResponseBuilder extends MessageBuilder {
         this.destination = "";
         this.inResponseTo = "";
         this.statusCodes = new String[]{STATUS_CODE_SUCCESS};
-        this.messageId = "";
         issueInstant = DateTime.now();
     }
 
@@ -111,14 +109,13 @@ public class ResponseBuilder extends MessageBuilder {
         this.statusCodes = statusCodes;
 
         DefaultBootstrap.bootstrap();
-        messageId = new SecureRandomIdentifierGenerator().generateIdentifier();
         issueInstant = DateTime.now();
     }
 
 //////////////////////////////////////// Methods
     /**
-     * Overrides the method in MessageBuilder in order to generate a SAML
-     * status message with multiple status codes
+     * Overrides the method in MessageBuilder in order to generate a SAML status
+     * message with multiple status codes
      *
      * @return
      * @throws ConfigurationException
@@ -164,7 +161,7 @@ public class ResponseBuilder extends MessageBuilder {
         // Response - the outermost element
         final Response response = (Response) buildXMLObject(Response.DEFAULT_ELEMENT_NAME);
         response.setVersion(SAMLVersion.VERSION_20);
-        response.setID(messageId);
+        response.setID(new SecureRandomIdentifierGenerator().generateIdentifier());
         response.setInResponseTo(inResponseTo);
         response.setIssueInstant(issueInstant);
         response.setDestination(destination);

@@ -23,6 +23,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -33,14 +34,18 @@ import javax.xml.transform.TransformerException;
 import org.joda.time.DateTime;
 import org.opensaml.DefaultBootstrap;
 import org.opensaml.common.binding.BasicSAMLMessageContext;
+import org.opensaml.common.binding.decoding.BaseSAMLMessageDecoder;
 import org.opensaml.saml2.binding.decoding.HTTPPostDecoder;
+import org.opensaml.saml2.binding.decoding.HTTPSOAP11Decoder;
 import org.opensaml.saml2.core.Assertion;
 import org.opensaml.saml2.core.AttributeQuery;
 import org.opensaml.saml2.core.AuthnStatement;
 import org.opensaml.ws.message.MessageContext;
 import org.opensaml.ws.message.decoder.MessageDecodingException;
+import org.opensaml.ws.soap.soap11.Envelope;
 import org.opensaml.ws.transport.http.HttpServletRequestAdapter;
 import org.opensaml.xml.ConfigurationException;
+import org.opensaml.xml.XMLObject;
 import org.opensaml.xml.io.MarshallingException;
 import org.opensaml.xml.parse.XMLParserException;
 import org.opensaml.xml.security.SecurityException;
@@ -80,8 +85,7 @@ public class AttributeService extends HttpServlet {
             DefaultBootstrap.bootstrap();   // initialise OpenSAML
             directory = DirectoryFactory.getInstance().createDirectory();
             eligibilityChecker = EligibilityCheckerFactory.getInstance().createEligibilityChecker();
-        }
-        catch (ConfigurationException ex) {
+        } catch (ConfigurationException ex) {
             logger.error("Error initializing attribute service: {}", ex.getMessage());
             throw new ServletException(ex);
         }
@@ -113,8 +117,7 @@ public class AttributeService extends HttpServlet {
             pw.println("<h1>Welcome to the STIAM Attribute Authority!</h1>");
             pw.println("The authority is <b>up and running</b>, accepting attribute requests via HTTP POST.");
             pw.println("</body>\n</html>");
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
             logger.error("Cannot send infopage, unable to write to response: {}", ex.getMessage());
         }
     }
@@ -134,27 +137,22 @@ public class AttributeService extends HttpServlet {
         logger.info("Request received!");
         final DateTime receptionTime = DateTime.now();
 
-        //////////////////// Check for POST-parameter SAMLRequest
-        logger.debug("Trying to find raw request...");
-        final String rawQuery = req.getParameter("SAMLRequest");
-        if (rawQuery == null) {
-            logger.warn("Request did not contain a SAMLRequest!");
-            res.setStatus(400);
-            res.setContentType("text/plain");
-            res.getWriter().println("No SAML request found in POST!");
-            return;
-        }
-        logger.debug("Raw request found!");
-
         //////////////////// Decode raw request
         logger.debug("Trying to decode raw request...");
         final MessageContext messageContext = new BasicSAMLMessageContext();
         messageContext.setInboundMessageTransport(new HttpServletRequestAdapter(req));
-        final HTTPPostDecoder samlMessageDecoder = new HTTPPostDecoder();
-        try {
-            samlMessageDecoder.decode(messageContext);
+        final BaseSAMLMessageDecoder messageDecoder;
+        if (config.getBinding() == StiamConfiguration.Binding.HTTP_POST) {
+            logger.debug("Using HTTPPostDecoder for decoding...");
+            messageDecoder = new HTTPPostDecoder();
+        } else {
+            logger.debug("Using HTTPSOAP11Decoder for decoding...");
+            messageDecoder = new HTTPSOAP11Decoder();
         }
-        catch (MessageDecodingException | SecurityException ex) {
+
+        try {
+            messageDecoder.decode(messageContext);
+        } catch (MessageDecodingException | SecurityException | IllegalArgumentException ex) {
             sendSAMLError(res, 400, "Decoding failed: " + ex.getMessage(), "", "",
                     new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
                         ResponseBuilder.STATUS_CODE_REQUEST_DENIED});
@@ -164,16 +162,34 @@ public class AttributeService extends HttpServlet {
 
         //////////////////// Read out attribute-query
         logger.debug("Trying to read AttributeQuery...");
-        final AttributeQuery attributeQuery;
+        AttributeQuery attributeQuery = null;
         try {
-            attributeQuery = (AttributeQuery) messageContext.getInboundMessage();
-        }
-        catch (ClassCastException ex) {
-            sendSAMLError(res, 400, "Decoded message was not an attribute query!", "", "",
+            if (config.getBinding() == StiamConfiguration.Binding.HTTP_POST) {
+                attributeQuery = (AttributeQuery) messageContext.getInboundMessage();
+            } else {
+                final Envelope soapEnvelope = (Envelope) messageContext.getInboundMessage();
+                final List<XMLObject> bodyElements = soapEnvelope.getBody().getUnknownXMLObjects();
+
+                for (XMLObject element : bodyElements) {
+                    if (element instanceof AttributeQuery) {
+                        attributeQuery = (AttributeQuery) element;
+                    }
+                }
+            }
+        } catch (ClassCastException ex) {
+            sendSAMLError(res, 400, "AttributeQuery could not be read!", "", "",
                     new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
                         ResponseBuilder.STATUS_CODE_REQUEST_DENIED});
             return;
         }
+
+        if (attributeQuery == null) {
+            sendSAMLError(res, 400, "No AttributeQuery found!", "", "",
+                    new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
+                        ResponseBuilder.STATUS_CODE_REQUEST_DENIED});
+            return;
+        }
+
         logger.debug("Sucessfully read AttributeQuery!");
 
         //////////////////// Try to read out QueryID, Issuer and NameID of the query
@@ -185,8 +201,7 @@ public class AttributeService extends HttpServlet {
             queryID = attributeQuery.getID();
             queryIssuer = attributeQuery.getIssuer().getValue();
             nameID = attributeQuery.getSubject().getNameID().getValue();
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             sendSAMLError(res, 400, "Unable to read essential attributes of the query!", "", "",
                     new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
                         ResponseBuilder.STATUS_CODE_REQUEST_DENIED});
@@ -197,7 +212,7 @@ public class AttributeService extends HttpServlet {
         //////////////////// Verify signature of the attribute query
         if (config.verifyQuerySignature()) {
             logger.debug("Trying to verify signature of the attribute query...");
-            if (!verifySignature(attributeQuery.getSignature())) {
+            if (!verifySignature(attributeQuery.getSignature(), attributeQuery.getIssuer().getValue().toString())) {
                 sendSAMLError(res, 400, "Signature validation failed!", queryIssuer, queryID,
                         new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
                             ResponseBuilder.STATUS_CODE_REQUEST_DENIED});
@@ -238,8 +253,7 @@ public class AttributeService extends HttpServlet {
                                 ResponseBuilder.STATUS_CODE_NO_AUTHN_CONTEXT});
                     return;
                 }
-            }
-            catch (Exception ex) {
+            } catch (Exception ex) {
                 sendSAMLError(res, 400, "Unable to read embedded authentication statement!", queryIssuer, queryID,
                         new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
                             ResponseBuilder.STATUS_CODE_NO_AUTHN_CONTEXT});
@@ -257,10 +271,10 @@ public class AttributeService extends HttpServlet {
             }
             logger.debug("NameIDs are equal!");
 
-            //////////////////// Verify signature of the attribute query
+            //////////////////// Verify signature of the assertion
             if (config.verifyAuthnSignature()) {
                 logger.debug("Trying to validate signature of authentication statement...");
-                if (!verifySignature(assertion.getSignature())) {
+                if (!verifySignature(assertion.getSignature(), assertion.getIssuer().getValue().toString())) {
                     sendSAMLError(res, 400, "Signature validation failed!", queryIssuer, queryID,
                             new String[]{ResponseBuilder.STATUS_CODE_REQUESTER,
                                 ResponseBuilder.STATUS_CODE_NO_AUTHN_CONTEXT});
@@ -319,14 +333,12 @@ public class AttributeService extends HttpServlet {
                 attributes.get(name).setValue(fetchedAttributes.get(name));
                 logger.debug("Got value: {}", attributes.get(name));
             }
-        }
-        catch (NameIDNotFoundException ex) {
+        } catch (NameIDNotFoundException ex) {
             sendSAMLError(res, 400, "Subject not found!", queryIssuer, queryID,
                     new String[]{ResponseBuilder.STATUS_CODE_RESPONDER,
                         ResponseBuilder.STATUS_CODE_UNKNOWN_PRINCIPAL});
             return;
-        }
-        catch (DirectoryException ex) {
+        } catch (DirectoryException ex) {
             sendError(res, 500, "Error while fetching Attributes in directory: " + ex.getMessage());
             return;
         }
@@ -337,7 +349,7 @@ public class AttributeService extends HttpServlet {
         try {
             logger.debug("Building attribute response...");
             final AttributeResponseBuilder builder = new AttributeResponseBuilder(queryIssuer, queryID, nameID, attributes.values());
-            if (config.getSAMLReturnPOSTBinding()) {
+            if (config.getBinding() == StiamConfiguration.Binding.HTTP_POST) {
                 res.setStatus(200);
                 res.setContentType("text/html");
 
@@ -352,11 +364,15 @@ public class AttributeService extends HttpServlet {
                 pw.println("</body>\n</html>");
             } else {
                 res.setStatus(200);
-                res.setContentType("text/plain");
-                res.getWriter().println(builder.build());
+                res.setContentType("text/xml;charset=UTF-8");
+
+                final PrintWriter pw = res.getWriter();
+                pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+                pw.print("<soap11:Envelope xmlns:soap11=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap11:Body>");
+                pw.print(builder.build().substring(38));    // FIXME ugly substring-hack
+                pw.print("</soap11:Body></soap11:Envelope>");
             }
-        }
-        catch (ConfigurationException | NoSuchAlgorithmException | KeyStoreException | CertificateException |
+        } catch (ConfigurationException | NoSuchAlgorithmException | KeyStoreException | CertificateException |
                 UnrecoverableEntryException | SecurityException | MarshallingException | SignatureException |
                 XMLParserException | TransformerException ex) {
             sendError(res, 500, "Error while building attribute response: " + ex.getMessage());
@@ -372,16 +388,14 @@ public class AttributeService extends HttpServlet {
      * @param signature the signature to verify
      * @return true if verification was successful, false if not
      */
-    private boolean verifySignature(Signature signature) {
+    private boolean verifySignature(Signature signature, String alias) {
         try {
-            final SignatureValidator signatureValidator = new SignatureValidator(config.getVerificationCredential());
+            final SignatureValidator signatureValidator = new SignatureValidator(config.getVerificationCredential(alias));
             signatureValidator.validate(signature);
-        }
-        catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | UnrecoverableEntryException | IOException ex) {
+        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | UnrecoverableEntryException | IOException ex) {
             logger.error("Error while obtaining verification credential: {}", ex.getMessage());
             return false;
-        }
-        catch (ValidationException ex) {
+        } catch (ValidationException ex) {
             logger.error("Error while validating signature: {}", ex.getMessage());
             return false;
         }
@@ -409,9 +423,14 @@ public class AttributeService extends HttpServlet {
         res.setContentType("text/plain");
         try {
             final ResponseBuilder builder = new ResponseBuilder(destination, queryID, statusCodes);
-            res.getWriter().println(builder.build());
-        }
-        catch (ConfigurationException | NoSuchAlgorithmException | KeyStoreException | CertificateException |
+
+            final PrintWriter pw = res.getWriter();
+            pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            pw.print("<soap11:Envelope xmlns:soap11=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap11:Body>");
+            pw.print(builder.build().substring(38));    // FIXME ugly substring-hack
+            pw.print("</soap11:Body></soap11:Envelope>");
+
+        } catch (ConfigurationException | NoSuchAlgorithmException | KeyStoreException | CertificateException |
                 UnrecoverableEntryException | SecurityException | MarshallingException | SignatureException |
                 XMLParserException | TransformerException | IOException ex) {
             sendError(res, 500, "Error while sending error, cause: {}" + ex.getMessage());
@@ -432,8 +451,7 @@ public class AttributeService extends HttpServlet {
         res.setContentType("text/plain");
         try {
             res.getWriter().println(message);
-        }
-        catch (IOException ex1) {
+        } catch (IOException ex1) {
             logger.error("Cannot send error, unable to write to response: {}", ex1.getMessage());
         }
     }
